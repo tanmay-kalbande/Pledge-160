@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [isAddPartnerOpen, setIsAddPartnerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   // --- Initialization ---
   const loadData = async () => {
@@ -48,6 +49,10 @@ const App: React.FC = () => {
 
       const loadedLogs = await dataService.getLogs();
       setLogs(loadedLogs);
+
+      // Check for pending incoming requests
+      const incomingRequests = await dataService.checkIncomingRequests();
+      setPendingRequestCount(incomingRequests.length);
     }
     setIsLoading(false);
   };
@@ -151,8 +156,8 @@ const App: React.FC = () => {
             <button
               onClick={() => setViewingProfileId(currentUser.id)}
               className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-full transition-all border ${currentUser.id === viewingProfileId
-                  ? 'bg-gold text-noir-base border-gold'
-                  : 'bg-noir-surface text-zinc-400 border-noir-border hover:border-zinc-600 hover:text-white'
+                ? 'bg-gold text-noir-base border-gold'
+                : 'bg-noir-surface text-zinc-400 border-noir-border hover:border-zinc-600 hover:text-white'
                 }`}
             >
               ME
@@ -163,8 +168,8 @@ const App: React.FC = () => {
                 key={p.id}
                 onClick={() => setViewingProfileId(p.id)}
                 className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-full transition-all border flex items-center gap-1.5 ${p.id === viewingProfileId
-                    ? 'bg-gold text-noir-base border-gold'
-                    : 'bg-noir-surface text-zinc-400 border-noir-border hover:border-zinc-600 hover:text-white'
+                  ? 'bg-gold text-noir-base border-gold'
+                  : 'bg-noir-surface text-zinc-400 border-noir-border hover:border-zinc-600 hover:text-white'
                   }`}
               >
                 <Users size={12} />
@@ -174,10 +179,15 @@ const App: React.FC = () => {
 
             <button
               onClick={() => setIsAddPartnerOpen(true)}
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-noir-surface border border-noir-border text-zinc-500 hover:text-gold hover:border-gold transition-all"
+              className="relative flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-noir-surface border border-noir-border text-zinc-500 hover:text-gold hover:border-gold transition-all"
               title="Add Partner"
             >
               <Plus size={14} />
+              {pendingRequestCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-gold text-noir-base text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                  {pendingRequestCount}
+                </span>
+              )}
             </button>
           </div>
 
