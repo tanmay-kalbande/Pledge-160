@@ -6,28 +6,28 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({ 
-  children, 
-  variant = 'primary', 
-  size = 'md', 
+export const Button: React.FC<ButtonProps> = ({
+  children,
+  variant = 'primary',
+  size = 'md',
   isLoading,
   className = '',
-  ...props 
+  ...props
 }) => {
-  const baseStyles = "inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0e0e0e] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg active:scale-95";
-  
+  const baseStyles = "inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-noir-base disabled:opacity-50 disabled:cursor-not-allowed rounded-lg active:scale-95";
+
   const variants = {
-    // Gold background, Black text. High contrast.
-    primary: "bg-[#fbbf24] hover:bg-[#f59e0b] text-[#0e0e0e] focus:ring-[#fbbf24] shadow-[0_4px_12px_rgba(251,191,36,0.2)] hover:shadow-[0_4px_16px_rgba(251,191,36,0.3)]",
-    
+    // Gold background, Noir text. High contrast.
+    primary: "bg-gold hover:bg-gold-dim text-noir-base focus:ring-gold shadow-[0_4px_12px_rgba(251,191,36,0.3)] hover:shadow-[0_4px_16px_rgba(251,191,36,0.4)]",
+
     // Transparent background, Gold border, Gold text.
-    secondary: "bg-transparent border-2 border-[#fbbf24] text-[#fbbf24] hover:bg-[#fbbf24] hover:text-[#0e0e0e] focus:ring-[#fbbf24]",
-    
+    secondary: "bg-transparent border-2 border-gold text-gold hover:bg-gold hover:text-noir-base focus:ring-gold",
+
     // Red background for danger.
     danger: "bg-red-600 hover:bg-red-700 text-white focus:ring-red-500 shadow-[0_4px_12px_rgba(220,38,38,0.2)]",
-    
+
     // Subtle text button.
-    ghost: "bg-transparent hover:bg-[#1a1a1a] text-[#a3a3a3] hover:text-white"
+    ghost: "bg-transparent hover:bg-noir-surface text-zinc-500 hover:text-white"
   };
 
   const sizes = {
@@ -37,7 +37,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <button 
+    <button
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={isLoading || props.disabled}
       {...props}

@@ -52,28 +52,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-noir-base flex flex-col items-center justify-center p-6 text-white">
       <div className="w-full max-w-sm space-y-8">
 
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#fbbf24] text-[#0e0e0e] mb-4 shadow-[0_0_40px_rgba(251,191,36,0.2)]">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gold text-noir-base mb-4 shadow-[0_0_40px_rgba(251,191,36,0.2)]">
             <ShieldCheck size={32} strokeWidth={2} />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Pledge 160</h1>
-          <p className="text-[#737373] text-sm">Discipline Protocol & Accountability</p>
+          <p className="text-zinc-500 text-sm">Discipline Protocol & Accountability</p>
         </div>
 
-        <div className="bg-[#1a1a1a] border border-[#333333] rounded-xl p-8 space-y-6">
-          <div className="flex bg-[#0e0e0e] p-1 rounded-lg">
+        <div className="bg-noir-surface border border-noir-border rounded-xl p-8 space-y-6 shadow-2xl">
+          <div className="flex bg-noir-base p-1 rounded-lg">
             <button
               onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded transition-all ${isLogin ? 'bg-[#262626] text-white shadow' : 'text-[#525252] hover:text-[#a3a3a3]'}`}
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded transition-all ${isLogin ? 'bg-noir-elevated text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
               Login
             </button>
             <button
               onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded transition-all ${!isLogin ? 'bg-[#262626] text-white shadow' : 'text-[#525252] hover:text-[#a3a3a3]'}`}
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded transition-all ${!isLogin ? 'bg-noir-elevated text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
               Sign Up
             </button>
@@ -83,15 +83,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
             {!isLogin && (
               <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
-                <label className="text-[10px] font-bold text-[#fbbf24] uppercase tracking-widest">Codename / Name</label>
+                <label className="text-[10px] font-bold text-gold uppercase tracking-widest">Codename / Name</label>
                 <div className="relative">
-                  <User size={16} className="absolute left-3 top-3.5 text-[#525252]" />
+                  <User size={16} className="absolute left-3 top-3.5 text-zinc-500" />
                   <input
                     type="text"
                     required={!isLogin}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-[#0e0e0e] border border-[#333333] rounded-lg py-3 pl-10 pr-4 text-white placeholder-[#333333] focus:border-[#fbbf24] focus:outline-none transition-colors"
+                    className="w-full bg-noir-base border border-noir-border rounded-lg py-3 pl-10 pr-4 text-white placeholder-zinc-700 font-sans focus:border-gold focus:ring-1 focus:ring-gold/20 focus:outline-none transition-all shadow-inner"
                     placeholder="Enter your name"
                   />
                 </div>
@@ -99,31 +99,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             )}
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#fbbf24] uppercase tracking-widest">Email</label>
+              <label className="text-[10px] font-bold text-gold uppercase tracking-widest">Email</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3 top-3.5 text-[#525252]" />
+                <Mail size={16} className="absolute left-3 top-3.5 text-zinc-500" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#0e0e0e] border border-[#333333] rounded-lg py-3 pl-10 pr-4 text-white placeholder-[#333333] focus:border-[#fbbf24] focus:outline-none transition-colors"
+                  className="w-full bg-noir-base border border-noir-border rounded-lg py-3 pl-10 pr-4 text-white placeholder-zinc-700 font-sans focus:border-gold focus:ring-1 focus:ring-gold/20 focus:outline-none transition-all shadow-inner"
                   placeholder="operative@pledge.com"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#fbbf24] uppercase tracking-widest">Password</label>
+              <label className="text-[10px] font-bold text-gold uppercase tracking-widest">Password</label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-3.5 text-[#525252]" />
+                <Lock size={16} className="absolute left-3 top-3.5 text-zinc-500" />
                 <input
                   type="password"
                   required
                   minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#0e0e0e] border border-[#333333] rounded-lg py-3 pl-10 pr-4 text-white placeholder-[#333333] focus:border-[#fbbf24] focus:outline-none transition-colors"
+                  className="w-full bg-noir-base border border-noir-border rounded-lg py-3 pl-10 pr-4 text-white placeholder-zinc-700 font-sans focus:border-gold focus:ring-1 focus:ring-gold/20 focus:outline-none transition-all shadow-inner"
                   placeholder="••••••••"
                 />
               </div>
