@@ -22,7 +22,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
     try {
       if (!isSupabaseConfigured || !supabase) {
-        throw new Error("Connection Error: Supabase keys missing in metadata.json");
+        throw new Error("Connection Error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables");
       }
 
       // Real Supabase Auth
@@ -31,8 +31,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         if (error) throw error;
       } else {
         // Sign Up with Metadata (Name)
-        const { error } = await supabase.auth.signUp({ 
-          email, 
+        const { error } = await supabase.auth.signUp({
+          email,
           password,
           options: {
             data: {
@@ -42,7 +42,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         });
         if (error) throw error;
       }
-      
+
       onAuthSuccess();
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
@@ -54,7 +54,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   return (
     <div className="min-h-screen bg-[#0e0e0e] flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
-        
+
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#fbbf24] text-[#0e0e0e] mb-4 shadow-[0_0_40px_rgba(251,191,36,0.2)]">
             <ShieldCheck size={32} strokeWidth={2} />
@@ -80,14 +80,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
-            
+
             {!isLogin && (
               <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
                 <label className="text-[10px] font-bold text-[#fbbf24] uppercase tracking-widest">Codename / Name</label>
                 <div className="relative">
                   <User size={16} className="absolute left-3 top-3.5 text-[#525252]" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required={!isLogin}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -102,8 +102,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <label className="text-[10px] font-bold text-[#fbbf24] uppercase tracking-widest">Email</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-3.5 text-[#525252]" />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -117,8 +117,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <label className="text-[10px] font-bold text-[#fbbf24] uppercase tracking-widest">Password</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-3.5 text-[#525252]" />
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   required
                   minLength={6}
                   value={password}
