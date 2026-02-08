@@ -5,7 +5,7 @@ import { DEFAULT_PLEDGE_GOAL } from '../constants';
 // --- REALTIME SUBSCRIPTIONS ---
 
 export const subscribeToUpdates = (onUpdate: () => void) => {
-  if (!isSupabaseConfigured || !supabase) return () => {};
+  if (!isSupabaseConfigured || !supabase) return () => { };
 
   const channels = [
     // Listen for changes in logs (check-ins)
@@ -21,7 +21,7 @@ export const subscribeToUpdates = (onUpdate: () => void) => {
         onUpdate();
       })
       .subscribe(),
-      
+
     // Listen for new partnership requests
     supabase.channel('public:partnerships')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'partnerships' }, () => {
@@ -43,9 +43,9 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    
+
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    
+
     if (data) {
       return {
         ...data,
@@ -53,12 +53,12 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
         pledgeGoal: data.pledge_goal || DEFAULT_PLEDGE_GOAL
       } as UserProfile;
     }
-    
+
     // Fallback if profile doesn't exist yet (race condition with trigger)
     return {
       id: user.id,
       email: user.email!,
-      name: user.user_metadata?.full_name || user.email!.split('@')[0], 
+      name: user.user_metadata?.full_name || user.email!.split('@')[0],
       currentStreak: 0,
       bestStreak: 0,
       lastCheckInDate: null,
@@ -72,7 +72,7 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
 
 export const updateProfileSettings = async (userId: string, updates: { name: string; pledgeGoal: number }) => {
   if (!isSupabaseConfigured || !supabase) throw new Error("Database not connected");
-  
+
   await supabase.from('profiles').update({
     name: updates.name,
     pledge_goal: updates.pledgeGoal
@@ -94,14 +94,16 @@ export const getPartners = async (currentUserId: string): Promise<UserProfile[]>
     const user = await getCurrentUser();
     if (!user) return [];
 
+    const normalizedEmail = user.email.toLowerCase().trim();
+
     const { data: partnerships } = await supabase
       .from('partnerships')
       .select('*')
       .eq('status', 'accepted')
-      .or(`requester_id.eq.${currentUserId},receiver_email.eq.${user.email}`);
-    
+      .or(`requester_id.eq.${currentUserId},receiver_email.eq.${normalizedEmail}`);
+
     if (!partnerships || partnerships.length === 0) return [];
-    
+
     const partnerProfiles: UserProfile[] = [];
 
     for (const rel of partnerships) {
@@ -118,14 +120,14 @@ export const getPartners = async (currentUserId: string): Promise<UserProfile[]>
       }
 
       if (p) {
-        partnerProfiles.push({ 
-          ...p, 
+        partnerProfiles.push({
+          ...p,
           journeyStartDate: p.journey_start_date,
           pledgeGoal: p.pledge_goal || DEFAULT_PLEDGE_GOAL
         });
       }
     }
-    
+
     return partnerProfiles;
   } catch (error) {
     console.error("Error fetching partners:", error);
@@ -138,23 +140,25 @@ export const sendPartnershipRequest = async (receiverEmail: string) => {
 
   const user = await getCurrentUser();
   if (!user) throw new Error("Not logged in");
-  
+
   // Check for self-invite
   if (receiverEmail.toLowerCase() === user.email.toLowerCase()) {
     throw new Error("You cannot invite yourself.");
   }
-  
+
+  const normalizedEmail = receiverEmail.toLowerCase().trim();
+
   const { data: existing } = await supabase.from('partnerships')
-      .select('*')
-      .eq('receiver_email', receiverEmail)
-      .eq('requester_id', user.id)
-      .single();
-      
+    .select('*')
+    .eq('receiver_email', normalizedEmail)
+    .eq('requester_id', user.id)
+    .single();
+
   if (existing) return;
 
   await supabase.from('partnerships').insert([{
     requester_id: user.id,
-    receiver_email: receiverEmail,
+    receiver_email: normalizedEmail,
     status: 'pending'
   }]);
 };
@@ -162,19 +166,19 @@ export const sendPartnershipRequest = async (receiverEmail: string) => {
 export const checkOutgoingRequests = async (): Promise<string | null> => {
   if (!isSupabaseConfigured || !supabase) return null;
 
-   const user = await getCurrentUser();
-   if (!user) return null;
+  const user = await getCurrentUser();
+  if (!user) return null;
 
-   const { data } = await supabase
-     .from('partnerships')
-     .select('receiver_email')
-     .eq('requester_id', user.id)
-     .eq('status', 'pending')
-     .order('created_at', { ascending: false })
-     .limit(1)
-     .single();
-   
-   return data ? data.receiver_email : null;
+  const { data } = await supabase
+    .from('partnerships')
+    .select('receiver_email')
+    .eq('requester_id', user.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  return data ? data.receiver_email : null;
 }
 
 export const checkIncomingRequests = async () => {
@@ -182,19 +186,21 @@ export const checkIncomingRequests = async () => {
 
   const user = await getCurrentUser();
   if (!user) return [];
-  
+
+  const normalizedEmail = user.email.toLowerCase().trim();
+
   const { data } = await supabase.from('partnerships')
     .select('*')
-    .eq('receiver_email', user.email)
+    .eq('receiver_email', normalizedEmail)
     .eq('status', 'pending');
-    
+
   if (data && data.length > 0) {
-      const enriched = await Promise.all(data.map(async (req: any) => {
-          // Fetch requester name. Note: RLS must allow this (see updated db_schema.sql)
-          const { data: p } = await supabase.from('profiles').select('name').eq('id', req.requester_id).single();
-          return { ...req, requesterName: p?.name || 'Unknown User' };
-      }));
-      return enriched;
+    const enriched = await Promise.all(data.map(async (req: any) => {
+      // Fetch requester name. Note: RLS must allow this (see updated db_schema.sql)
+      const { data: p } = await supabase.from('profiles').select('name').eq('id', req.requester_id).single();
+      return { ...req, requesterName: p?.name || 'Unknown User' };
+    }));
+    return enriched;
   }
   return [];
 };
@@ -208,7 +214,7 @@ export const acceptRequest = async (requestId: string) => {
 
 export const getLogs = async (): Promise<CheckInLog[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
-  
+
   const { data, error } = await supabase.from('logs').select('*').order('date', { ascending: false });
   if (!error && data) return data as CheckInLog[];
   return [];
@@ -222,14 +228,14 @@ export const submitCheckIn = async (log: Omit<CheckInLog, 'id'>, user: UserProfi
 
   // Update Streak Logic
   let updatedUser = { ...user };
-  
+
   // Helper to check if two dates are the same calendar day (Client Local Time)
   const isSameDay = (d1: string, d2: string) => {
     const date1 = new Date(d1);
     const date2 = new Date(d2);
     return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate();
   };
 
   const alreadyCheckedInToday = user.lastCheckInDate && isSameDay(user.lastCheckInDate, newLog.date);
@@ -244,18 +250,18 @@ export const submitCheckIn = async (log: Omit<CheckInLog, 'id'>, user: UserProfi
       updatedUser.currentStreak += 1;
       updatedUser.lastCheckInDate = newLog.date;
     }
-    
+
     // Check for best streak
     if (updatedUser.currentStreak > updatedUser.bestStreak) {
       updatedUser.bestStreak = updatedUser.currentStreak;
     }
   }
-  
+
   // If no start date, set it now
   if (!updatedUser.journeyStartDate) {
     updatedUser.journeyStartDate = new Date().toISOString();
   }
-  
+
   const dbProfile = {
     id: updatedUser.id,
     name: updatedUser.name,
@@ -266,7 +272,7 @@ export const submitCheckIn = async (log: Omit<CheckInLog, 'id'>, user: UserProfi
     journey_start_date: updatedUser.journeyStartDate,
     pledge_goal: updatedUser.pledgeGoal
   };
-  
+
   await supabase.from('profiles').upsert(dbProfile);
 };
 
