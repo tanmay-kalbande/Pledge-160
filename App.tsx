@@ -2,34 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { CheckInLog, UserProfile } from './types';
 import { APP_NAME, DEFAULT_PLEDGE_GOAL } from './constants';
 import * as dataService from './services/dataService';
-import * as notificationService from './services/notificationService';
 import { AuthScreen } from './components/AuthScreen';
-import { AddPartnerModal } from './components/AddPartnerModal';
 import { SettingsModal } from './components/SettingsModal';
 import { CheckInModal } from './components/CheckInModal';
 import { ProgressChart } from './components/ProgressChart';
 import { CalendarGrid } from './components/CalendarGrid';
 import { StatsOverview } from './components/StatsOverview';
-import { ShieldCheck, Plus, LayoutDashboard, Calendar, History as HistoryIcon, LogOut, Users, UserPlus, Sliders } from 'lucide-react';
-import { NotificationToast } from './components/NotificationToast';
+import { ShieldCheck, Plus, LayoutDashboard, Calendar, History as HistoryIcon, LogOut, Users, Sliders } from 'lucide-react';
 
 type Tab = 'DASHBOARD' | 'CALENDAR' | 'HISTORY';
+type ViewMode = 'ME' | 'BRO';
 
 const App: React.FC = () => {
   // --- Auth & Data State ---
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [partners, setPartners] = useState<UserProfile[]>([]);
+  const [broProfile, setBroProfile] = useState<UserProfile | null>(null);
 
   // --- UI State ---
   const [activeTab, setActiveTab] = useState<Tab>('DASHBOARD');
-  const [viewingProfileId, setViewingProfileId] = useState<string>('');
+  const [viewMode, setViewMode] = useState<ViewMode>('ME');
   const [logs, setLogs] = useState<CheckInLog[]>([]);
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
-  const [isAddPartnerOpen, setIsAddPartnerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [pendingRequestCount, setPendingRequestCount] = useState(0);
-  const [notification, setNotification] = useState<{ message: string; onAction?: () => void } | null>(null);
 
   // --- Initialization ---
   const loadData = async () => {
@@ -44,48 +39,18 @@ const App: React.FC = () => {
 
       setCurrentUser(user);
 
-      // If we were viewing someone, keep viewing them, else view me
-      if (!viewingProfileId) setViewingProfileId(user.id);
-
-      const partnersList = await dataService.getPartners(user.id);
-      setPartners(partnersList);
+      // Get bro's profile
+      const bro = await dataService.getBroProfile(user.email);
+      setBroProfile(bro);
 
       const loadedLogs = await dataService.getLogs();
       setLogs(loadedLogs);
-
-      // Check for pending incoming requests
-      const incomingRequests = await dataService.checkIncomingRequests();
-      const newCount = incomingRequests.length;
-
-      // Show notification if count increased
-      if (newCount > pendingRequestCount && newCount > 0) {
-        const requesterName = incomingRequests[0].requesterName || 'Someone';
-        const notificationMessage = `${requesterName} wants to be your accountability partner!`;
-
-        // Show browser notification (works even when app is in background)
-        notificationService.showBrowserNotification(
-          'New Partnership Request',
-          notificationMessage,
-          () => setIsAddPartnerOpen(true)
-        );
-
-        // Also show in-app toast notification
-        setNotification({
-          message: notificationMessage,
-          onAction: () => setIsAddPartnerOpen(true)
-        });
-      }
-
-      setPendingRequestCount(newCount);
     }
     setIsLoading(false);
   };
 
   useEffect(() => {
     loadData();
-
-    // Request notification permission
-    notificationService.requestNotificationPermission();
 
     // Enable Realtime Subscription for seamless sync
     const unsubscribe = dataService.subscribeToUpdates(() => {
@@ -106,8 +71,7 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await dataService.logout();
     setCurrentUser(null);
-    setPartners([]);
-    setViewingProfileId('');
+    setBroProfile(null);
   };
 
   const handleCheckIn = async (status: 'SUCCESS' | 'RELAPSE', mood: string, note: string) => {
@@ -122,7 +86,6 @@ const App: React.FC = () => {
     };
 
     await dataService.submitCheckIn(newLog, currentUser);
-    // Data reload handled by realtime subscription or manual refresh in dataService
     loadData();
   };
 
@@ -141,21 +104,17 @@ const App: React.FC = () => {
   }
 
   // Determine whose data we are showing
-  const isMe = viewingProfileId === currentUser.id;
-  const targetProfile = isMe
-    ? currentUser
-    : partners.find(p => p.id === viewingProfileId) || currentUser;
+  const isMe = viewMode === 'ME';
+  const targetProfile = isMe ? currentUser : (broProfile || currentUser);
 
   const activeLogs = logs.filter(l => l.userId === targetProfile.id);
   const targetStartDate = targetProfile.journeyStartDate || new Date().toISOString();
-  // Use the profile's specific goal, or fallback to default
   const targetGoal = targetProfile.pledgeGoal || DEFAULT_PLEDGE_GOAL;
 
   const calculateDaysRemaining = () => {
     if (!targetStartDate) return targetGoal;
     const start = new Date(targetStartDate);
     const now = new Date();
-    // Reset hours to compare days only
     start.setHours(0, 0, 0, 0);
     now.setHours(0, 0, 0, 0);
 
@@ -178,11 +137,11 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* User Switcher Scroll Area */}
-          <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar mask-linear-fade">
+          {/* Simple ME / BRO Toggle */}
+          <div className="flex-1 flex items-center justify-center gap-2">
             <button
-              onClick={() => setViewingProfileId(currentUser.id)}
-              className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-full transition-all border ${currentUser.id === viewingProfileId
+              onClick={() => setViewMode('ME')}
+              className={`px-4 py-2 text-xs font-bold rounded-full transition-all border ${viewMode === 'ME'
                 ? 'bg-gold text-noir-base border-gold'
                 : 'bg-noir-surface text-zinc-400 border-noir-border hover:border-zinc-600 hover:text-white'
                 }`}
@@ -190,32 +149,18 @@ const App: React.FC = () => {
               ME
             </button>
 
-            {partners.map(p => (
+            {broProfile && (
               <button
-                key={p.id}
-                onClick={() => setViewingProfileId(p.id)}
-                className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-full transition-all border flex items-center gap-1.5 ${p.id === viewingProfileId
+                onClick={() => setViewMode('BRO')}
+                className={`px-4 py-2 text-xs font-bold rounded-full transition-all border flex items-center gap-1.5 ${viewMode === 'BRO'
                   ? 'bg-gold text-noir-base border-gold'
                   : 'bg-noir-surface text-zinc-400 border-noir-border hover:border-zinc-600 hover:text-white'
                   }`}
               >
                 <Users size={12} />
-                {p.name.toUpperCase()}
+                BRO
               </button>
-            ))}
-
-            <button
-              onClick={() => setIsAddPartnerOpen(true)}
-              className="relative flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-noir-surface border border-noir-border text-zinc-500 hover:text-gold hover:border-gold transition-all"
-              title="Add Partner"
-            >
-              <Plus size={14} />
-              {pendingRequestCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-gold text-noir-base text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse shadow-lg">
-                  {pendingRequestCount}
-                </span>
-              )}
-            </button>
+            )}
           </div>
 
           {/* Settings / Logout */}
@@ -241,7 +186,7 @@ const App: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
               {targetProfile.name}
-              {targetProfile.id !== currentUser.id && <Users size={16} className="text-gold" />}
+              {!isMe && <Users size={16} className="text-gold" />}
             </h2>
             <p className="text-zinc-500 text-xs font-mono mt-1">
               STATUS: <span className={targetProfile.currentStreak > 0 ? "text-emerald-500 font-bold" : "text-zinc-500"}>
@@ -254,27 +199,6 @@ const App: React.FC = () => {
             <div className="text-[10px] text-zinc-500 tracking-widest uppercase font-bold">Day Streak</div>
           </div>
         </section>
-
-        {/* Empty State for Partners */}
-        {partners.length === 0 && isMe && (
-          <div className="bg-noir-surface border border-noir-border rounded-xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-2 shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-noir-elevated flex items-center justify-center text-gold">
-                <UserPlus size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">Add Accountability Partner</p>
-                <p className="text-[10px] text-zinc-500">Boost success rate by 200%</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsAddPartnerOpen(true)}
-              className="px-4 py-2 bg-noir-elevated hover:bg-noir-border text-xs font-bold text-white rounded-lg border border-noir-border transition-colors shadow-sm"
-            >
-              Add
-            </button>
-          </div>
-        )}
 
         {/* Content Area Based on Tab */}
         {activeTab === 'DASHBOARD' && (
@@ -329,7 +253,7 @@ const App: React.FC = () => {
 
       </main>
 
-      {/* Floating Action Button (Only Me) */}
+      {/* Floating Action Button (Only for ME) */}
       {isMe && (
         <div className="fixed bottom-24 right-6 z-50">
           <button
@@ -376,28 +300,12 @@ const App: React.FC = () => {
         onSubmit={handleCheckIn}
       />
 
-      <AddPartnerModal
-        isOpen={isAddPartnerOpen}
-        onClose={() => setIsAddPartnerOpen(false)}
-        onPartnerAdded={loadData}
-      />
-
       {currentUser && (
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           user={currentUser}
           onUpdate={loadData}
-        />
-      )}
-
-      {/* Notification Toast */}
-      {notification && (
-        <NotificationToast
-          message={notification.message}
-          onClose={() => setNotification(null)}
-          onAction={notification.onAction}
-          actionLabel="View Request"
         />
       )}
 

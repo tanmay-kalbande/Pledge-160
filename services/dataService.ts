@@ -2,6 +2,12 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { CheckInLog, UserProfile } from '../types';
 import { DEFAULT_PLEDGE_GOAL } from '../constants';
 
+// --- HARDCODED TWO-USER SYSTEM ---
+const USER_EMAILS = {
+  me: 'ashu@pledge.in',      // Ashu
+  bro: 'mayank@pledge.in'    // Mayank
+};
+
 // --- REALTIME SUBSCRIPTIONS ---
 
 export const subscribeToUpdates = (onUpdate: () => void) => {
@@ -18,13 +24,6 @@ export const subscribeToUpdates = (onUpdate: () => void) => {
     // Listen for changes in profiles (streaks, settings)
     supabase.channel('public:profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-        onUpdate();
-      })
-      .subscribe(),
-
-    // Listen for new partnership requests
-    supabase.channel('public:partnerships')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'partnerships' }, () => {
         onUpdate();
       })
       .subscribe()
@@ -85,129 +84,36 @@ export const logout = async () => {
   }
 };
 
-// --- PARTNERSHIP SERVICES ---
+// --- SIMPLE TWO-USER PARTNER SYSTEM ---
 
-export const getPartners = async (currentUserId: string): Promise<UserProfile[]> => {
-  if (!isSupabaseConfigured || !supabase) return [];
-
-  try {
-    const user = await getCurrentUser();
-    if (!user) return [];
-
-    const normalizedEmail = user.email.toLowerCase().trim();
-
-    const { data: partnerships } = await supabase
-      .from('partnerships')
-      .select('*')
-      .eq('status', 'accepted')
-      .or(`requester_id.eq.${currentUserId},receiver_email.eq.${normalizedEmail}`);
-
-    if (!partnerships || partnerships.length === 0) return [];
-
-    const partnerProfiles: UserProfile[] = [];
-
-    for (const rel of partnerships) {
-      let p;
-      // Depending on who initiated, we fetch the *other* person's profile
-      if (rel.requester_id === currentUserId) {
-        // I requested, so fetching receiver
-        const res = await supabase.from('profiles').select('*').eq('email', rel.receiver_email).single();
-        p = res.data;
-      } else {
-        // I received, so fetching requester
-        const res = await supabase.from('profiles').select('*').eq('id', rel.requester_id).single();
-        p = res.data;
-      }
-
-      if (p) {
-        partnerProfiles.push({
-          ...p,
-          journeyStartDate: p.journey_start_date,
-          pledgeGoal: p.pledge_goal || DEFAULT_PLEDGE_GOAL
-        });
-      }
-    }
-
-    return partnerProfiles;
-  } catch (error) {
-    console.error("Error fetching partners:", error);
-    return [];
-  }
-};
-
-export const sendPartnershipRequest = async (receiverEmail: string) => {
-  if (!isSupabaseConfigured || !supabase) throw new Error("Database not connected");
-
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Not logged in");
-
-  // Check for self-invite
-  if (receiverEmail.toLowerCase() === user.email.toLowerCase()) {
-    throw new Error("You cannot invite yourself.");
-  }
-
-  const normalizedEmail = receiverEmail.toLowerCase().trim();
-
-  const { data: existing } = await supabase.from('partnerships')
-    .select('*')
-    .eq('receiver_email', normalizedEmail)
-    .eq('requester_id', user.id)
-    .single();
-
-  if (existing) return;
-
-  await supabase.from('partnerships').insert([{
-    requester_id: user.id,
-    receiver_email: normalizedEmail,
-    status: 'pending'
-  }]);
-};
-
-export const checkOutgoingRequests = async (): Promise<string | null> => {
+export const getBroProfile = async (currentUserEmail: string): Promise<UserProfile | null> => {
   if (!isSupabaseConfigured || !supabase) return null;
 
-  const user = await getCurrentUser();
-  if (!user) return null;
+  try {
+    // Determine who is "bro" based on current user
+    const normalizedEmail = currentUserEmail.toLowerCase().trim();
+    const broEmail = normalizedEmail === USER_EMAILS.me.toLowerCase()
+      ? USER_EMAILS.bro
+      : USER_EMAILS.me;
 
-  const { data } = await supabase
-    .from('partnerships')
-    .select('receiver_email')
-    .eq('requester_id', user.id)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', broEmail)
+      .single();
 
-  return data ? data.receiver_email : null;
-}
-
-export const checkIncomingRequests = async () => {
-  if (!isSupabaseConfigured || !supabase) return [];
-
-  const user = await getCurrentUser();
-  if (!user) return [];
-
-  const normalizedEmail = user.email.toLowerCase().trim();
-
-  const { data } = await supabase.from('partnerships')
-    .select('*')
-    .eq('receiver_email', normalizedEmail)
-    .eq('status', 'pending');
-
-  if (data && data.length > 0) {
-    const enriched = await Promise.all(data.map(async (req: any) => {
-      // Fetch requester name. Note: RLS must allow this (see updated db_schema.sql)
-      const { data: p } = await supabase.from('profiles').select('name').eq('id', req.requester_id).single();
-      return { ...req, requesterName: p?.name || 'Unknown User' };
-    }));
-    return enriched;
+    if (data) {
+      return {
+        ...data,
+        journeyStartDate: data.journey_start_date,
+        pledgeGoal: data.pledge_goal || DEFAULT_PLEDGE_GOAL
+      } as UserProfile;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching bro profile:", error);
+    return null;
   }
-  return [];
-};
-
-export const acceptRequest = async (requestId: string) => {
-  if (!isSupabaseConfigured || !supabase) return;
-  await supabase.from('partnerships').update({ status: 'accepted' }).eq('id', requestId);
 };
 
 // --- DATA SERVICES ---
