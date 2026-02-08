@@ -139,10 +139,25 @@ export const getLogs = async (): Promise<CheckInLog[]> => {
 export const submitCheckIn = async (log: Omit<CheckInLog, 'id'>, user: UserProfile): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error("Database not connected");
 
+  // Helper to check if two dates are the same calendar day
+  const isSameDay = (d1: string, d2: string) => {
+    const date1 = new Date(d1);
+    const date2 = new Date(d2);
+    return date1.getFullYear() === date2.getFullYear() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate();
+  };
+
+  // Check if already checked in today (unless it's a relapse - always allow logging relapses)
+  const alreadyCheckedInToday = user.lastCheckInDate && isSameDay(user.lastCheckInDate, log.date);
+  if (alreadyCheckedInToday && log.status === 'SUCCESS') {
+    throw new Error("Already checked in today! Come back tomorrow.");
+  }
+
   // Convert to database format (snake_case)
   const dbLog = {
     id: crypto.randomUUID(),
-    user_id: log.userId,  // DB uses snake_case
+    user_id: log.userId,
     date: log.date,
     status: log.status,
     mood: log.mood,
@@ -153,27 +168,13 @@ export const submitCheckIn = async (log: Omit<CheckInLog, 'id'>, user: UserProfi
   // Update Streak Logic
   let updatedUser = { ...user };
 
-  // Helper to check if two dates are the same calendar day (Client Local Time)
-  const isSameDay = (d1: string, d2: string) => {
-    const date1 = new Date(d1);
-    const date2 = new Date(d2);
-    return date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate();
-  };
-
-  const alreadyCheckedInToday = user.lastCheckInDate && isSameDay(user.lastCheckInDate, log.date);
-
   if (log.status === 'RELAPSE') {
     updatedUser.currentStreak = 0;
-    // Always update last check-in date on relapse to mark the event
     updatedUser.lastCheckInDate = log.date;
   } else {
-    // Only increment streak if we haven't checked in successfully today
-    if (!alreadyCheckedInToday) {
-      updatedUser.currentStreak += 1;
-      updatedUser.lastCheckInDate = log.date;
-    }
+    // We already checked for duplicate SUCCESS check-ins above, so safe to increment
+    updatedUser.currentStreak += 1;
+    updatedUser.lastCheckInDate = log.date;
 
     // Check for best streak
     if (updatedUser.currentStreak > updatedUser.bestStreak) {
