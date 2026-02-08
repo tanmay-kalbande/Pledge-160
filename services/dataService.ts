@@ -122,15 +122,33 @@ export const getLogs = async (): Promise<CheckInLog[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
 
   const { data, error } = await supabase.from('logs').select('*').order('date', { ascending: false });
-  if (!error && data) return data as CheckInLog[];
+  if (!error && data) {
+    // Convert from database format (snake_case) to TypeScript format (camelCase)
+    return data.map((log: any) => ({
+      id: log.id,
+      userId: log.user_id,
+      date: log.date,
+      status: log.status,
+      mood: log.mood,
+      note: log.note
+    }));
+  }
   return [];
 };
 
 export const submitCheckIn = async (log: Omit<CheckInLog, 'id'>, user: UserProfile): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error("Database not connected");
 
-  const newLog: CheckInLog = { ...log, id: crypto.randomUUID() };
-  await supabase.from('logs').insert([newLog]);
+  // Convert to database format (snake_case)
+  const dbLog = {
+    id: crypto.randomUUID(),
+    user_id: log.userId,  // DB uses snake_case
+    date: log.date,
+    status: log.status,
+    mood: log.mood,
+    note: log.note
+  };
+  await supabase.from('logs').insert([dbLog]);
 
   // Update Streak Logic
   let updatedUser = { ...user };
@@ -144,17 +162,17 @@ export const submitCheckIn = async (log: Omit<CheckInLog, 'id'>, user: UserProfi
       date1.getDate() === date2.getDate();
   };
 
-  const alreadyCheckedInToday = user.lastCheckInDate && isSameDay(user.lastCheckInDate, newLog.date);
+  const alreadyCheckedInToday = user.lastCheckInDate && isSameDay(user.lastCheckInDate, log.date);
 
-  if (newLog.status === 'RELAPSE') {
+  if (log.status === 'RELAPSE') {
     updatedUser.currentStreak = 0;
     // Always update last check-in date on relapse to mark the event
-    updatedUser.lastCheckInDate = newLog.date;
+    updatedUser.lastCheckInDate = log.date;
   } else {
     // Only increment streak if we haven't checked in successfully today
     if (!alreadyCheckedInToday) {
       updatedUser.currentStreak += 1;
-      updatedUser.lastCheckInDate = newLog.date;
+      updatedUser.lastCheckInDate = log.date;
     }
 
     // Check for best streak

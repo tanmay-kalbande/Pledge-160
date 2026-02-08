@@ -1,5 +1,5 @@
 // Service Worker for Pledge 160 - Provides offline support and caching
-const CACHE_NAME = 'pledge160-v4';
+const CACHE_NAME = 'pledge160-v5';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
