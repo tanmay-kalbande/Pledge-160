@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CheckInLog, UserProfile } from './types';
 import { APP_NAME, DEFAULT_PLEDGE_GOAL } from './constants';
 import * as dataService from './services/dataService';
+import * as notificationService from './services/notificationService';
 import { AuthScreen } from './components/AuthScreen';
 import { AddPartnerModal } from './components/AddPartnerModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -10,6 +11,7 @@ import { ProgressChart } from './components/ProgressChart';
 import { CalendarGrid } from './components/CalendarGrid';
 import { StatsOverview } from './components/StatsOverview';
 import { ShieldCheck, Plus, LayoutDashboard, Calendar, History as HistoryIcon, LogOut, Users, UserPlus, Sliders } from 'lucide-react';
+import { NotificationToast } from './components/NotificationToast';
 
 type Tab = 'DASHBOARD' | 'CALENDAR' | 'HISTORY';
 
@@ -27,6 +29,7 @@ const App: React.FC = () => {
   const [isAddPartnerOpen, setIsAddPartnerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [notification, setNotification] = useState<{ message: string; onAction?: () => void } | null>(null);
 
   // --- Initialization ---
   const loadData = async () => {
@@ -52,13 +55,37 @@ const App: React.FC = () => {
 
       // Check for pending incoming requests
       const incomingRequests = await dataService.checkIncomingRequests();
-      setPendingRequestCount(incomingRequests.length);
+      const newCount = incomingRequests.length;
+
+      // Show notification if count increased
+      if (newCount > pendingRequestCount && newCount > 0) {
+        const requesterName = incomingRequests[0].requesterName || 'Someone';
+        const notificationMessage = `${requesterName} wants to be your accountability partner!`;
+
+        // Show browser notification (works even when app is in background)
+        notificationService.showBrowserNotification(
+          'New Partnership Request',
+          notificationMessage,
+          () => setIsAddPartnerOpen(true)
+        );
+
+        // Also show in-app toast notification
+        setNotification({
+          message: notificationMessage,
+          onAction: () => setIsAddPartnerOpen(true)
+        });
+      }
+
+      setPendingRequestCount(newCount);
     }
     setIsLoading(false);
   };
 
   useEffect(() => {
     loadData();
+
+    // Request notification permission
+    notificationService.requestNotificationPermission();
 
     // Enable Realtime Subscription for seamless sync
     const unsubscribe = dataService.subscribeToUpdates(() => {
@@ -361,6 +388,16 @@ const App: React.FC = () => {
           onClose={() => setIsSettingsOpen(false)}
           user={currentUser}
           onUpdate={loadData}
+        />
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <NotificationToast
+          message={notification.message}
+          onClose={() => setNotification(null)}
+          onAction={notification.onAction}
+          actionLabel="View Request"
         />
       )}
 

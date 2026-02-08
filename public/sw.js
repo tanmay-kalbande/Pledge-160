@@ -1,5 +1,5 @@
 // Service Worker for Pledge 160 - Provides offline support and caching
-const CACHE_NAME = 'pledge160-v1';
+const CACHE_NAME = 'pledge160-v2';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -54,5 +54,44 @@ self.addEventListener('fetch', (event) => {
                 // Fallback to cache if network fails
                 return caches.match(event.request);
             })
+    );
+});
+
+// Push Notification Handler
+self.addEventListener('push', (event) => {
+    const data = event.data ? event.data.json() : {};
+    const title = data.title || 'Pledge 160';
+    const options = {
+        body: data.body || 'You have a new notification',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200],
+        tag: 'partnership-request',
+        requireInteraction: true,
+        data: data.url || '/'
+    };
+
+    event.waitUntil(
+        self.registration.showNotification(title, options)
+    );
+});
+
+// Notification Click Handler
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // If app is already open, focus it
+            for (const client of clientList) {
+                if (client.url === event.notification.data && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Otherwise open a new window
+            if (clients.openWindow) {
+                return clients.openWindow(event.notification.data);
+            }
+        })
     );
 });
